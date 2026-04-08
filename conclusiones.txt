@@ -1,0 +1,120 @@
+================================================================================
+        HALLAZGOS Y CONCLUSIONES — TEST E2E DEMOBLAZE PRODUCT STORE
+================================================================================
+
+Proyecto: Serenity BDD + Cucumber + Screenplay Pattern
+URL bajo prueba: https://www.demoblaze.com
+Fecha de elaboración: 08 de abril de 2026
+
+--------------------------------------------------------------------------------
+1. ALCANCE DEL TEST
+--------------------------------------------------------------------------------
+
+Se diseñó un único escenario E2E que cubre el flujo completo de compra en la
+tienda Demoblaze, compuesto por 4 casos funcionales ejecutados en secuencia:
+
+  Caso 1 - Agregar primer producto al carrito (Samsung galaxy s6 - $360)
+  Caso 2 - Agregar segundo producto al carrito (Nokia lumia 1520 - $820)
+  Caso 3 - Verificar contenido del carrito (2 productos, total $1180)
+  Caso 4 - Completar formulario de compra y confirmar la orden
+
+Se tomó la decisión de unificar los 4 casos en un solo Scenario debido a que el flujo
+es secuencial y dependiente: no se puede verificar el carrito sin haber agregado
+productos, ni completar la compra sin tener el carrito lleno.
+
+--------------------------------------------------------------------------------
+2. HALLAZGOS TÉCNICOS
+--------------------------------------------------------------------------------
+
+2.1 Alertas JavaScript nativas
+    - Demoblaze utiliza alertas nativas del navegador para 
+      confirmar que un producto fue agregado al carrito con el mensaje
+      "Product added".
+    - Estas alertas no son elementos del DOM, por lo que requieren manejo
+      especial con WebDriver (driver.switchTo().alert()).
+    - Se implementó un WebDriverWait con ExpectedConditions.alertIsPresent()
+      para evitar condiciones de carrera (race conditions).
+
+2.2 Navegación entre páginas
+    - Tras agregar un producto, el usuario debe navegar manualmente de vuelta
+      a la página principal para seleccionar el siguiente producto.
+    - El enlace "Home" en el menú de navegación tiene un espacio al final
+      en su texto ("Home "), lo que requiere un selector XPath preciso:
+      //a[text()='Home ']
+
+2.3 Elementos dinámicos en el carrito
+    - La tabla del carrito (#tbodyid) se carga dinámicamente vía JavaScript.
+    - Los productos aparecen como filas <tr> con celdas <td> que contienen
+      el nombre del producto en texto plano.
+    - El total (#totalp) también se calcula dinámicamente y puede tomar un
+      momento en actualizarse, requiriendo esperas explícitas.
+
+2.4 Modal de Place Order
+    - El formulario de compra se presenta en un modal Bootstrap (#orderModal).
+    - Los campos del formulario (Name, Country, City, Credit card, Month, Year)
+      son inputs estándar con IDs predecibles (#name, #country, #city, #card,
+      #month, #year).
+    - No hay validación del lado del cliente en los campos del formulario —
+      se puede enviar con cualquier dato.
+
+2.5 Confirmación de compra
+    - El mensaje de éxito "Thank you for your purchase!" aparece en un modal
+      SweetAlert, no en un modal Bootstrap estándar.
+    - El botón "OK" cierra el modal y redirige al usuario a la página principal.
+
+--------------------------------------------------------------------------------
+3. SELECTORES UTILIZADOS
+--------------------------------------------------------------------------------
+
+Se emplearon selectores proporcionados en la especificación del test:
+
+  | Tipo     | Cantidad | Ejemplo                              |
+  |----------|----------|--------------------------------------|
+  | CSS ID   | 9        | #tbodyid, #cartur, #name, #totalp    |
+  | CSS comp | 2        | #tbodyid h2.name, #tbodyid h3.price  |
+  | XPath    | 7        | //a[text()='Samsung galaxy s6']      |
+
+Nota: Los selectores XPath basados en texto (text()='...') son más frágiles
+ante cambios en el contenido de la página. En un entorno productivo se
+recomienda usar atributos data-testid cuando estén disponibles.
+
+--------------------------------------------------------------------------------
+4. DATOS DE PRUEBA
+--------------------------------------------------------------------------------
+
+  Producto 1: Samsung galaxy s6 — $360
+  Producto 2: Nokia lumia 1520 — $820
+  Total esperado: $1180
+
+  Datos del formulario de compra:
+    Nombre:  Juan Perez
+    País:    Colombia
+    Ciudad:  Bogotá
+    Tarjeta: 4580 1234 5678 9012
+    Mes:     12
+    Año:     2027
+
+--------------------------------------------------------------------------------
+5. CONCLUSIONES
+--------------------------------------------------------------------------------
+
+6.1 La aplicación Demoblaze utiliza alertas JavaScript nativas y contenido
+    cargado dinámicamente, lo que requiere estrategias de espera explícitas
+    (WebDriverWait, WaitUntil) para garantizar la estabilidad del test.
+
+6.2 La falta de validación en el formulario de compra representa una
+    oportunidad para agregar casos negativos que verifiquen el comportamiento
+    ante datos inválidos (campos vacíos, tarjeta con formato incorrecto, etc.).
+
+6.3 El diseño con Screenplay Pattern facilita la extensión de la suite:
+    agregar nuevos productos, verificar eliminación del carrito o probar
+    diferentes combinaciones de datos requiere mínimo esfuerzo adicional.
+
+6.4 Se recomienda ejecutar el test en modo headless para CI/CD y en modo
+    visible para depuración local. La configuración actual en serenity.conf
+    soporta ambos modos.
+
+6.5 La página no respeta HTML semántico por lo que dificulta el trabajo de 
+    identificar los elementos por ID o clases específicas. Esto resultó en
+    la necesidad de aplicar xPath
+
